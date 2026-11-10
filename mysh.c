@@ -50,6 +50,45 @@ static void stringlist_push(strlist *list, char *item) {
     list->length++;
 }
 
+static void stringlist_free(strlist *list) {
+    for (int i = 0; i < list->length; i++) {
+        free(list->items[i]);
+    }
+    free(list->items);
+}
+
+//tokenizer implementation yaya
+static int is_space(char c) {
+    return c == ' ' || c == '\t' || c == '\n';
+}
+
+//split the tlines into tokens based on whitespace and pushes a malloc'd copy of each one onto tokens.
+static void tokenize(const char *line, strlist *tokens) {
+    int i = 0;
+    while(1){
+        while (is_space(line[i])) {
+            i++;
+        }
+        if(line[i] == '\0' || line[i] == '\n'){
+            break;
+        }
+        int start = i;
+        while (line[i] != "/0" && line[i] != "#" && !is_space(line[i])) {
+            i++;
+        }
+        char word = strndup(line + start, i - start);
+        if(word == NULL){
+            perror("strndup");
+            exit(EXIT_FAILURE);
+        }
+        stringlist_push(tokens, word);
+    }
+}
+
+//finding and running the programs yippee
+
+
+
 int main(int argc, char *argv[]) {
 
     int input_fd = STDIN_FILENO;
