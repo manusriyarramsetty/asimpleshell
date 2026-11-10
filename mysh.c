@@ -9,16 +9,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-/*hello manu. i implemented main, aka im reading the command line input and making sure that
-the user inputted the correct number of arguments (0 or 1), and then i also implemented
-the check on whether mysh is running interactive mode or batch mode. I also made the loop
-that reads the command line input. This basically calls read() to read each individual char
-in the input and stores it to a C string and ends it/records it based on the characters read.
-i added comments so it makes more snese in the code idk. basically ur next step shld be
-to break that C string that i had the loop build for us into each separate command/arg
-and start goin into the actual pipes and processes or whatever. 
-*/
-
 typedef struct{
     char **items;
     int length;
