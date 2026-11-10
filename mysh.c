@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
 
     int input_fd = STDIN_FILENO;
 
-    //check argument nums -> less than two fail, equals two is file provided
+    //check argument nums -> assignment only allows 0 or 1 arguments
     if (argc > 2) {
         fprintf(stderr, "Usage: ./mysh [file]\n");
         return EXIT_FAILURE;
