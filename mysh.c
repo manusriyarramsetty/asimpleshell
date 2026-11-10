@@ -86,7 +86,24 @@ static void tokenize(const char *line, strlist *tokens) {
 }
 
 //finding and running the programs yippee
-
+static const char *search_dirs[] = {"usr/local/bin", "/usr/bin", "/bin"};
+static const int num_search_dirs = 3; //I know I shouldnt be hardcoding values but oh well
+static char *search_path(const char *command) {
+    for (int i = 0; i < num_search_dirs; i++) {
+        size_t size = (strlen(search_dirs[i]) + 1 + strlen(command) + 1);
+        char *path = malloc(size);
+        if (path == NULL){
+            perror("malloc");
+            exit(EXIT_FAILURE); 
+        }
+        snprintf(path, size, "%s/%s", search_dirs[i], command);
+        if (access(path, X_OK) == 0) {
+            return path;
+        }
+        free(path);
+    }
+    return NULL;
+}
 
 
 int main(int argc, char *argv[]) {
