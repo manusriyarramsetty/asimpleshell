@@ -102,11 +102,84 @@ static char *search_path(const char *command) {
     return NULL;
 }
 
-static void execute_command(strlist *tokens) {
+static int execute_builtin(strlist *tokens) {
+    char *command = tokens->items[0];
 
-    // don't execute anything if the command line input was empty
+    // cd implementation aka change the shell's working directory
+    if (strcmp(command, "cd") == 0) {
+        if (tokens->length > 2) {
+            fprintf(stderr, "cd: too many arguments\n");
+            return 0;
+        }
+
+        char *directory;
+
+        if (tokens->length == 1) {
+            directory = getenv("HOME");
+            if (directory == NULL) {
+                fprintf(stderr, "cd: HOME not set\n");
+                return 0;
+            }
+        } else {
+            directory = tokens->items[1];
+        }
+
+        if (chdir(directory) == -1) {
+            perror("cd");
+        }
+
+        return 0;
+    }
+
+    // pwd implementation aka print the current workin directory
+    if (strcmp(command, "pwd") == 0) {
+        char cwd[PATH_MAX];
+
+        if (getcwd(cwd, sizeof(cwd)) == NULL) {
+            perror("pwd");
+        } else {
+            printf("%s\n", cwd);
+        }
+
+        return 0;
+    }
+
+    // which implementaiton aka find the executable path of a command
+    if (strcmp(command, "which") == 0) {
+        for (int i = 1; i < tokens->length; i++) {
+            char *path = search_path(tokens->items[i]);
+
+            if (path == NULL) {
+                fprintf(stderr, "%s: not found\n", tokens->items[i]);
+            } else {
+                printf("%s\n", path);
+                free(path);
+            }
+        }
+
+        return 0;
+    }
+
+    // exit: tell the shell to terminate
+    if (strcmp(command, "exit") == 0) {
+        return 1;
+    }
+
+    // Not a built-in command
+    return -1;
+}
+
+
+static int execute_command(strlist *tokens) {
+
     if (tokens->length == 0) {
-        return;
+        return 0;
+    }
+
+    int result = execute_builtin(tokens);
+
+    if (result != -1) {
+        return result;
     }
 
     //command is first item of tokens array
@@ -122,7 +195,7 @@ static void execute_command(strlist *tokens) {
 
     if (path == NULL) {
         fprintf(stderr, "%s: command not found\n", command);
-        return;
+        return 0;
     }
 
     //create a null-terminated argument array for execv()
@@ -166,6 +239,7 @@ static void execute_command(strlist *tokens) {
 
     free(args);
     free(path);
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -289,12 +363,14 @@ int main(int argc, char *argv[]) {
             stringlist_free(&tokens);
         } */
 
+        int should_exit = 0;
+
         if (!error && (length > 0 || !eof)) {
             strlist tokens;
             stringlist_initialize(&tokens);
             tokenize(line, &tokens);
 
-            execute_command(&tokens);
+            should_exit = execute_command(&tokens);
 
             stringlist_free(&tokens);
         }
@@ -302,7 +378,7 @@ int main(int argc, char *argv[]) {
         free(line);
 
         //error hnadling
-        if (eof || error) {
+        if (eof || error || should_exit) {
             break;
         }
 
