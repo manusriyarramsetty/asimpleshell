@@ -72,11 +72,13 @@ static void tokenize(const char *line, strlist *tokens) {
             perror("strndup");
             exit(EXIT_FAILURE);
         }
-        stringlist_push(tokens, word);
 
         if (line[i] == '#') {
             break;
         }
+        
+        stringlist_push(tokens, word);
+
     }
 }
 
@@ -206,6 +208,20 @@ int main(int argc, char *argv[]) {
         // temporarily print line (testing)
         if (!error && (length > 0 || !eof)) {
             printf("Received command: %s\n", line);
+        }
+
+        //testing tokenizer
+        if (!error && (length > 0 || !eof)) {
+            strlist tokens;
+            stringlist_initialize(&tokens);
+
+            tokenize(line, &tokens);
+
+            for (int i = 0; i < tokens.length; i++) {
+                printf("Token %d: %s\n", i, tokens.items[i]);
+            }
+
+            stringlist_free(&tokens);
         }
 
         free(line);
