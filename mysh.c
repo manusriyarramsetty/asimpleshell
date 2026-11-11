@@ -67,7 +67,7 @@ static void tokenize(const char *line, strlist *tokens) {
             i++;
         }
         char *word = strndup(line + start, i - start);
-        
+
         if(word == NULL){
             perror("strndup");
             exit(EXIT_FAILURE);
@@ -77,7 +77,7 @@ static void tokenize(const char *line, strlist *tokens) {
 }
 
 //finding and running the programs yippee
-static const char *search_dirs[] = {"usr/local/bin", "/usr/bin", "/bin"};
+static const char *search_dirs[] = {"/usr/local/bin", "/usr/bin", "/bin"};
 static const int num_search_dirs = 3; //I know I shouldnt be hardcoding values but oh well
 static char *search_path(const char *command) {
     for (int i = 0; i < num_search_dirs; i++) {
