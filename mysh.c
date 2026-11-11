@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/types.h>
-#include <sys/wait.h>
+//#include <sys/wait.h>
 
 typedef struct{
     char **items;
@@ -63,10 +63,11 @@ static void tokenize(const char *line, strlist *tokens) {
             break;
         }
         int start = i;
-        while (line[i] != "/0" && line[i] != "#" && !is_space(line[i])) {
+        while (line[i] != '\0' && line[i] != '#' && !is_space(line[i])) {
             i++;
         }
-        char word = strndup(line + start, i - start);
+        char *word = strndup(line + start, i - start);
+        
         if(word == NULL){
             perror("strndup");
             exit(EXIT_FAILURE);
