@@ -7,7 +7,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/types.h>
-//#include <sys/wait.h>
+#include <sys/wait.h>
 
 typedef struct{
     char **items;
@@ -102,6 +102,71 @@ static char *search_path(const char *command) {
     return NULL;
 }
 
+static void execute_command(strlist *tokens) {
+
+    // don't execute anything if the command line input was empty
+    if (tokens->length == 0) {
+        return;
+    }
+
+    //command is first item of tokens array
+    char *command = tokens->items[0];
+    char *path;
+
+    //if command contains '/', use it as a direct path or search specified directories
+    if (strchr(command, '/') != NULL) {
+        path = strdup(command);
+    } else {
+        path = search_path(command);
+    }
+
+    if (path == NULL) {
+        fprintf(stderr, "%s: command not found\n", command);
+        return;
+    }
+
+    //create a null-terminated argument array for execv()
+    char **args = malloc((tokens->length + 1) * sizeof(char *));
+
+    if (args == NULL) {
+        perror("malloc");
+        free(path);
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < tokens->length; i++) {
+        args[i] = tokens->items[i];
+    }
+
+    args[tokens->length] = NULL;
+
+    // create a child process
+    /*negative: gulp somethins wrong
+    0:child process
+    positive: parent process*/ 
+    pid_t pid = fork();
+
+    //error w fork
+    if (pid < 0) {
+        perror("fork");
+    }
+    //child process
+    else if (pid == 0) {
+        execv(path, args);
+
+        // Only reached if execv fails
+        perror("execv");
+        _exit(EXIT_FAILURE);
+    }
+    //parent process aka pid > 0 positive
+    else {
+        // PARENT PROCESS: wait for child to finish
+        waitpid(pid, NULL, 0);
+    }
+
+    free(args);
+    free(path);
+}
 
 int main(int argc, char *argv[]) {
 
@@ -205,7 +270,7 @@ int main(int argc, char *argv[]) {
 
         line[length] = '\0';
 
-        // temporarily print line (testing)
+        /* temporarily print line (testing)
         if (!error && (length > 0 || !eof)) {
             printf("Received command: %s\n", line);
         }
@@ -220,6 +285,16 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < tokens.length; i++) {
                 printf("Token %d: %s\n", i, tokens.items[i]);
             }
+
+            stringlist_free(&tokens);
+        } */
+
+        if (!error && (length > 0 || !eof)) {
+            strlist tokens;
+            stringlist_initialize(&tokens);
+            tokenize(line, &tokens);
+
+            execute_command(&tokens);
 
             stringlist_free(&tokens);
         }
