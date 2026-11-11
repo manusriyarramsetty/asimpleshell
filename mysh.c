@@ -73,6 +73,10 @@ static void tokenize(const char *line, strlist *tokens) {
             exit(EXIT_FAILURE);
         }
         stringlist_push(tokens, word);
+
+        if (line[i] == '#') {
+            break;
+        }
     }
 }
 
