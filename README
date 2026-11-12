@@ -1,0 +1,51 @@
+aa3611 (Anagha Ajesh)
+my607 (Manusri Yarramsetty)
+
+`Testing Details:`
+
+We implemented our simple shell step by step, testing along the way. Here's how we broke it down: 
+
+### Broke down command line input character by character and stored it into a variable (later tokenized), and also allowed the user to exit. 
+
+- Used simple print statements to check that it was reading and recording input properly, wrote print statements throughout our code
+
+### Tokenizing the command line input + finding path stuff? -> manu go
+
+- Again used simple print statements to ensure each argument stored in the args array was accurate with test inputs into the shell
+
+### Executing external commands -> we implemented the commands one at a time and tested as we went
+
+- First commands: search_path(), fork(), execv(), and waitpid()
+- To test, we added the required search directories /usr/local/bin, /usr/bin, /bin
+- At this point of implementation, we could run our shell, and we tested these implementations by just running commands in the shell implementation and having the program print out the output as a standard shell would
+
+        -echo hello -> Running an external program
+        -pwd -> make sure the shell is can execute a command with no additional arguments
+        -ls -> finding a program through the search paths
+        -date -> executing another external program
+        -/bin/echo testing -> executing a program using its full path
+
+### Implemented built in commands
+
+- Again, implemented each command one at a time and tested as we went
+- Commands implemented: cd, pwd, which, exit
+- Ran commands like:
+        -pwd -> prints the current working directory
+        -cd .. followed by pwd -> make sure it moves to the parent directory
+        -cd followed by pwd -> should return to the home directory
+        -which ls -> ocates the executable for ls
+        -exit -> user terminates the shell
+
+### Redirection
+
+- Similarly tested with commands 
+
+### Wildcard Implementation
+
+- First, we created sample files outside our shell using touch: 
+        -touch a.txt application.txt b.txt app.c -> some files with varying prefixes and suffixes
+        -touch .hidden.txt -> hidden text file
+- ran commands testing the wildcard implementation with those files like
+        -/bin/echo a*
+        -/bin/echo *.txt
+        -/bin/echo a*.txt

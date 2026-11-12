@@ -618,7 +618,6 @@ int main(int argc, char *argv[]) {
         printf("Exiting my shell.\n");
     }
 
-    //close file if opened
     if (argc == 2) {
         close(input_fd);
     }
