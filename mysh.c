@@ -104,6 +104,119 @@ static char *search_path(const char *command) {
     return NULL;
 }
 
+//wildcard handling -> check whether a filename matches the prefix*suffix pattern
+
+static int wildcard_match(const char *name, const char *prefix, const char *suffix) {
+    size_t name_len = strlen(name);
+    size_t prefix_len = strlen(prefix);
+    size_t suffix_len = strlen(suffix);
+
+    // filename must be long enough for both parts
+    if (name_len < prefix_len + suffix_len) {
+        return 0;
+    }
+
+    if (strncmp(name, prefix, prefix_len) != 0) {
+        return 0;
+    }
+
+    if (strcmp(name + name_len - suffix_len, suffix) != 0) {
+        return 0;
+    }
+
+    return 1;
+}
+
+// expand the wildcard * into matching filenames
+static void expand_wildcard(const char *token, strlist *expanded) {
+    char *star = strchr(token, '*');
+
+    //if no wildcard, keep the original token
+    if (star == NULL) {
+        stringlist_push(expanded, strdup(token));
+        return;
+    }
+
+    if (strchr(star + 1, '*') != NULL) {
+        stringlist_push(expanded, strdup(token));
+        return;
+    }
+
+    const char *slash = strrchr(token, '/');
+
+    if (slash != NULL && star < slash) {
+        stringlist_push(expanded, strdup(token));
+        return;
+    }
+
+    const char *filename = (slash == NULL) ? token : slash + 1;
+
+    char *prefix = strndup(filename, star - filename);
+    char *suffix = strdup(star + 1);
+
+    char *directory;
+
+    if (slash == NULL) {
+        directory = strdup(".");
+    } else if (slash == token) {
+        directory = strdup("/");
+    } else {
+        directory = strndup(token, slash - token);
+    }
+
+    DIR *dir = opendir(directory);
+
+    // if directory cant be opened, keep the original token
+    if (dir == NULL) {
+        stringlist_push(expanded, strdup(token));
+        free(prefix);
+        free(suffix);
+        free(directory);
+        return;
+    }
+
+    struct dirent *entry;
+    int matches = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        char *name = entry->d_name;
+
+        // patterns beginning with * must not match hidden files
+        if (filename[0] == '*' && name[0] == '.') {
+            continue;
+        }
+
+        if (wildcard_match(name, prefix, suffix)) {
+            char *match;
+
+            if (slash == NULL) {
+                match = strdup(name);
+            } else {
+                size_t path_len = slash - token + 1;
+                match = malloc(path_len + strlen(name) + 1);
+
+                memcpy(match, token, path_len);
+                strcpy(match + path_len, name);
+            }
+
+            stringlist_push(expanded, match);
+            matches++;
+        }
+    }
+
+    closedir(dir);
+
+    // if nothing matched, pass the original token unchanged
+    if (matches == 0) {
+        stringlist_push(expanded, strdup(token));
+    }
+
+    free(prefix);
+    free(suffix);
+    free(directory);
+}
+
+//executes all the cd pwd commands etc
 static int execute_builtin(strlist *tokens) {
     char *command = tokens->items[0];
 
@@ -162,16 +275,15 @@ static int execute_builtin(strlist *tokens) {
         return 0;
     }
 
-    // exit: tell the shell to terminate
+    // exit aka tell the shell to terminate
     if (strcmp(command, "exit") == 0) {
         return 1;
     }
 
-    // Not a built-in command
     return -1;
 }
 
-
+//process organization, args allocation, redirection stuf
 static int execute_command(strlist *tokens) {
 
     if (tokens->length == 0) {
@@ -245,6 +357,32 @@ static int execute_command(strlist *tokens) {
         return 0;
     }
 
+    // Expand wildcards in all command arguments
+    strlist expanded;
+    stringlist_initialize(&expanded);
+
+    for (int i = 0; i < arg_count; i++) {
+        expand_wildcard(args[i], &expanded);
+    }
+
+    // replace og args array with the expanded args
+    free(args);
+
+    arg_count = expanded.length;
+    args = malloc((arg_count + 1) * sizeof(char *));
+
+    if (args == NULL) {
+        perror("malloc");
+        stringlist_free(&expanded);
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i < arg_count; i++) {
+        args[i] = expanded.items[i];
+    }
+
+    args[arg_count] = NULL;
+
     //command is first item of tokens array
     char *command = args[0];
     char *path;
@@ -259,6 +397,7 @@ static int execute_command(strlist *tokens) {
     if (path == NULL) {
         fprintf(stderr, "%s: command not found\n", command);
         free(args);
+        stringlist_free(&expanded);
         return 0;
     }
 
@@ -328,6 +467,8 @@ static int execute_command(strlist *tokens) {
 
     free(args);
     free(path);
+    stringlist_free(&expanded);
+
     return 0;
 }
 
