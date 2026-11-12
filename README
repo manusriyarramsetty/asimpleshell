@@ -3,7 +3,7 @@ my607 (Manusri Yarramsetty)
 
 `Testing Details:`
 
-We implemented our simple shell step by step, testing along the way. Here's how we broke it down: 
+We implemented our simple shell step by step, testing along the way. A lot of syntax errors were caught by our compiler, but our logic was debugged with print statements, running commands, or creating test files that help test the methods. Here's how we broke it down: 
 
 ### Broke down command line input character by character and stored it into a variable (later tokenized), and also allowed the user to exit. 
 
