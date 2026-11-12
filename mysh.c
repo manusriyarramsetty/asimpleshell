@@ -8,6 +8,8 @@
 #include <limits.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 typedef struct{
     char **items;
@@ -182,8 +184,69 @@ static int execute_command(strlist *tokens) {
         return result;
     }
 
+    char *input_file = NULL;
+    char *output_file = NULL;
+    int append = 0;
+
+    char **args = malloc((tokens->length + 1) * sizeof(char *));
+    if (args == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    int arg_count = 0;
+
+    for (int i = 0; i < tokens->length; i++) {
+
+        if (strcmp(tokens->items[i], "<") == 0) {
+            if (i + 1 >= tokens->length) {
+                fprintf(stderr, "Missing input filename\n");
+                free(args);
+                return 0;
+            }
+
+            input_file = tokens->items[++i];
+        }
+
+        else if (strcmp(tokens->items[i], ">") == 0) {
+            if (i + 1 >= tokens->length) {
+                fprintf(stderr, "Missing output filename\n");
+                free(args);
+                return 0;
+            }
+
+            output_file = tokens->items[++i];
+            append = 0;
+        }
+
+        else if (strcmp(tokens->items[i], ">>") == 0) {
+            if (i + 1 >= tokens->length) {
+                fprintf(stderr, "Missing output filename\n");
+                free(args);
+                return 0;
+            }
+
+            output_file = tokens->items[++i];
+            append = 1;
+        }
+
+        else {
+            args[arg_count] = tokens->items[i];
+            arg_count++;
+        }
+    }
+
+    args[arg_count] = NULL;
+
+    //cld be null if someone only enters a redirection
+    if (arg_count == 0) {
+        fprintf(stderr, "Missing command\n");
+        free(args);
+        return 0;
+    }
+
     //command is first item of tokens array
-    char *command = tokens->items[0];
+    char *command = args[0];
     char *path;
 
     //if command contains '/', use it as a direct path or search specified directories
@@ -195,23 +258,9 @@ static int execute_command(strlist *tokens) {
 
     if (path == NULL) {
         fprintf(stderr, "%s: command not found\n", command);
+        free(args);
         return 0;
     }
-
-    //create a null-terminated argument array for execv()
-    char **args = malloc((tokens->length + 1) * sizeof(char *));
-
-    if (args == NULL) {
-        perror("malloc");
-        free(path);
-        exit(EXIT_FAILURE);
-    }
-
-    for (int i = 0; i < tokens->length; i++) {
-        args[i] = tokens->items[i];
-    }
-
-    args[tokens->length] = NULL;
 
     // create a child process
     /*negative: gulp somethins wrong
@@ -225,9 +274,49 @@ static int execute_command(strlist *tokens) {
     }
     //child process
     else if (pid == 0) {
-        execv(path, args);
+        // Handle input redirection
+        if (input_file != NULL) {
+            int fd = open(input_file, O_RDONLY);
 
-        // Only reached if execv fails
+            if (fd == -1) {
+                perror("open input");
+                _exit(EXIT_FAILURE);
+            }
+
+            if (dup2(fd, STDIN_FILENO) == -1) {
+                perror("dup2 input");
+                _exit(EXIT_FAILURE);
+            }
+
+            close(fd);
+        }
+
+        // handle output redirection
+        if (output_file != NULL) {
+            int flags = O_WRONLY | O_CREAT;
+
+            if (append) {
+                flags |= O_APPEND;
+            } else {
+                flags |= O_TRUNC;
+            }
+
+            int fd = open(output_file, flags, S_IRUSR | S_IWUSR | S_IRGRP);
+
+            if (fd == -1) {
+                perror("open output");
+                _exit(EXIT_FAILURE);
+            }
+
+            if (dup2(fd, STDOUT_FILENO) == -1) {
+                perror("dup2 output");
+                _exit(EXIT_FAILURE);
+            }
+
+            close(fd);
+        }
+
+        execv(path, args);
         perror("execv");
         _exit(EXIT_FAILURE);
     }
